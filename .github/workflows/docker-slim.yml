@@ -4,12 +4,6 @@ on:
   push:
     branches:
       - docker-sim
-    paths:
-      - 'src/**'
-      - 'docker/Dockerfile.slim'
-      - 'package*.json'
-      - 'tsconfig*.json'
-      - 'nest-cli.json'
 
 jobs:
   docker:
