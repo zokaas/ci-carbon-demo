@@ -27,7 +27,7 @@ fi
 
 # Ensure docs folder exists
 mkdir -p docs
-touch docs/README.md
+touch README.md
 
 # Start time
 START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
@@ -75,7 +75,7 @@ echo ""
 echo "=== Phase 2/2: 15 documentation changes (path-filter skips these) ==="
 
 for i in $(seq 1 15); do
-  echo "<!-- doc update $i - $(date) -->" >> docs/README.md
+  echo "<!-- doc update $i - $(date) -->" >> README.md
   git add .
   git commit -m "docs: update readme [$i/15]"
   git push origin ci-sim
