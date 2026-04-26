@@ -2,6 +2,8 @@ name: docker-multistage
 
 on:
   push:
+    branches:
+      - docker-sim
     paths:
       - 'src/**'
       - 'docker/Dockerfile.multistage'

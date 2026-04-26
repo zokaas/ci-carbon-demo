@@ -2,7 +2,9 @@ name: ci-baseline
 
 on:
   push:
-
+    branches:
+      - ci-sim
+      
 jobs:
   ci:
     runs-on: ubuntu-latest

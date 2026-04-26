@@ -2,6 +2,8 @@ name: ci-path-filter
 
 on:
   push:
+    branches:
+      - ci-sim
     paths:
       - 'src/**'
       - 'test/**'

@@ -2,6 +2,8 @@ name: ci-cached
 
 on:
   push:
+    branches:
+      - ci-sim
 
 jobs:
   ci:
