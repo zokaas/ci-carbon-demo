@@ -1,0 +1,79 @@
+name: docker-full
+
+on:
+  push:
+    paths:
+      - 'src/**'
+      - 'docker/Dockerfile.full'
+      - 'package*.json'
+      - 'tsconfig*.json'
+      - 'nest-cli.json'
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Start Eco CI measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: start-measurement
+          json-output: true
+          electricitymaps-api-token: ${{ secrets.ELECTRICITYMAPS_API_TOKEN }}
+        continue-on-error: true
+
+      - name: Build Docker image
+        run: docker build -f docker/Dockerfile.full -t nestjs-app-full .
+
+      - name: Measure docker-build
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: get-measurement
+          label: 'docker-build'
+        continue-on-error: true
+
+      - name: Start container
+        run: |
+          docker run -d --name nestjs-full -p 3000:3000 nestjs-app-full
+          sleep 8
+
+      - name: Smoke test
+        run: |
+          curl -f http://localhost:3000/products || exit 1
+          curl -f http://localhost:3000/users || exit 1
+          curl -f http://localhost:3000/orders || exit 1
+
+      - name: Stop container
+        run: docker stop nestjs-full && docker rm nestjs-full
+
+      - name: Measure docker-run
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: get-measurement
+          label: 'docker-run'
+        continue-on-error: true
+
+      - name: Final measurement
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5
+        with:
+          task: final-measurement
+          send-data: true
+          json-output: true
+        continue-on-error: true
+        if: always()
+
+      - name: Save energy artifact
+        if: always()
+        run: |
+          mkdir -p results
+          cp /tmp/eco-ci/lap-data.json \
+            results/energy-${{ github.workflow }}-${{ github.run_id }}.json || true
+
+      - name: Upload energy artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: energy-${{ github.workflow }}-${{ github.run_id }}
+          path: results/energy-*.json
+          retention-days: 30
