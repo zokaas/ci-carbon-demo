@@ -21,6 +21,7 @@ jobs:
           task: start-measurement
           send-data: true
           json-output: true
+          co2-calculation-method: location-based
           co2-grid-intensity-api-token: ${{ secrets.ELECTRICITYMAPS_API_TOKEN }}
         continue-on-error: true
 
