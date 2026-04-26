@@ -13,6 +13,7 @@ jobs:
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: start-measurement
+          send-data: true
           json-output: true
           electricitymaps-api-token: ${{ secrets.ELECTRICITYMAPS_API_TOKEN }}
         continue-on-error: true
@@ -63,7 +64,7 @@ jobs:
       - name: Final measurement
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
-          task: final-measurement
+          task: display-results
           send-data: true
           json-output: true
         continue-on-error: true
