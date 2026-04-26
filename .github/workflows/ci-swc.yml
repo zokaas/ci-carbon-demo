@@ -15,7 +15,7 @@ jobs:
           task: start-measurement
           send-data: true
           json-output: true
-          electricitymaps-api-token: ${{ secrets.ELECTRICITYMAPS_API_TOKEN }}
+          co2-grid-intensity-api-token: ${{ secrets.ELECTRICITYMAPS_API_TOKEN }}
         continue-on-error: true
 
       - uses: actions/setup-node@v5
@@ -23,7 +23,7 @@ jobs:
           node-version: '22'
 
       - name: Cache node_modules
-        uses: actions/cache@v4
+        uses: actions/cache@v4.2.3
         with:
           path: ~/.npm
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
@@ -97,7 +97,7 @@ jobs:
 
       - name: Upload energy artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: energy-${{ github.workflow }}-${{ github.run_id }}
           path: results/energy-*.json
