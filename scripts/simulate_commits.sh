@@ -10,7 +10,7 @@
 # =============================================================================
 set -euo pipefail
 
-WAIT=45  # seconds between commits
+WAIT=120  # seconds between commits
 
 # Branch check – must run from ci-sim branch
 EXPECTED_BRANCH="ci-sim"
@@ -105,9 +105,13 @@ echo "  ci-swc:         50 runs"
 echo "  ci-path-filter: 35 runs  (15 docs commits skipped)"
 echo "  Total:         185 runs"
 echo ""
-echo "Use these times for analysis:"
-echo "  SIM_A_START=${START_TIME}"
-echo "  SIM_A_END=${END_TIME}"
+echo "Times for analysis (ISO 8601 UTC):"
+SIM_A_START_ISO=$(date -u -d "${START_TIME}" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -u -j -f '%Y-%m-%d %H:%M:%S' "${START_TIME}" '+%Y-%m-%dT%H:%M:%SZ')
+echo "  SIM_A_START=${SIM_A_START_ISO}"
+echo ""
+echo "  WAIT 10 minutes after this script ends, then verify in GMT dashboard"
+echo "  that all 185 runs have arrived. Use that moment as SIM_A_END:"
+echo "    SIM_A_END=\$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 echo ""
 echo "Check data at:"
 echo "  https://metrics.green-coding.io/ci-index.html"

@@ -29,8 +29,7 @@ const DOCKER_BRANCH = process.env.DOCKER_BRANCH || 'docker-sim';
 
 const CI_WORKFLOWS = ['ci-baseline', 'ci-cached', 'ci-swc', 'ci-path-filter'];
 const DOCKER_WORKFLOWS = ['docker-full', 'docker-slim', 'docker-alpine', 'docker-multistage'];
-const CI_LABELS = ['install', 'lint-typecheck', 'test-suite'];
-const SWC_LABELS = ['install', 'lint-typecheck', 'test-suite', 'build-swc'];
+const CI_LABELS = ['install', 'lint-typecheck', 'test-suite', 'build'];
 const DOCKER_LABELS = ['docker-build', 'docker-run'];
 
 const RAW_HEADERS = [
@@ -128,14 +127,23 @@ function collectTotal(runs, labels) {
   const joules = [],
     seconds = [],
     intensities = [];
+  let dropped = 0;
   for (const { measurements } of Object.values(runs)) {
     const vals = labels.map((l) => measurements[l]).filter(Boolean);
-    if (vals.length !== labels.length) continue;
+    if (vals.length !== labels.length) {
+      dropped++;
+      continue;
+    }
     joules.push(vals.reduce((s, m) => s + m.joules, 0));
     seconds.push(vals.reduce((s, m) => s + m.seconds, 0));
     vals.forEach((m) => m.intensity && intensities.push(m.intensity));
   }
-  return { joules, seconds, intensity: intensities.length > 0 ? median(intensities) : null };
+  return {
+    joules,
+    seconds,
+    dropped,
+    intensity: intensities.length > 0 ? median(intensities) : null,
+  };
 }
 
 // =============================================================================
@@ -322,13 +330,12 @@ function buildCIData(ciRuns) {
   const ciData = {};
   for (const wf of CI_WORKFLOWS) {
     if (!ciRuns[wf]) continue;
-    const labels = wf === 'ci-swc' ? SWC_LABELS : CI_LABELS;
     ciData[wf] = {
-      total: collectTotal(ciRuns[wf], labels),
+      total: collectTotal(ciRuns[wf], CI_LABELS),
       install: collectLabel(ciRuns[wf], 'install'),
       'lint-typecheck': collectLabel(ciRuns[wf], 'lint-typecheck'),
       'test-suite': collectLabel(ciRuns[wf], 'test-suite'),
-      'build-swc': collectLabel(ciRuns[wf], 'build-swc'),
+      build: collectLabel(ciRuns[wf], 'build'),
     };
   }
   return ciData;
@@ -363,9 +370,26 @@ function reportPartA(ciRuns, ciData) {
     ciData['ci-swc']?.install.joules || [],
   );
 
-  printHeader('Part A – Build step (SWC vs tsc)');
-  console.log('\n  baseline and cached: tsc  |  ci-swc: SWC\n');
-  if (ciData['ci-swc']) printStats('build-swc (J)', ciData['ci-swc']['build-swc'].joules);
+  printHeader('Part A – Build step (tsc vs SWC)');
+  console.log('\n  ci-baseline / ci-cached / ci-path-filter: tsc  |  ci-swc: SWC\n');
+  for (const wf of CI_WORKFLOWS) {
+    if (!ciData[wf]) continue;
+    console.log(`▸ ${wf}`);
+    printStats('build (J)', ciData[wf].build.joules);
+  }
+  console.log();
+  printCliffs(
+    'baseline (tsc)',
+    ciData['ci-baseline']?.build.joules || [],
+    'swc',
+    ciData['ci-swc']?.build.joules || [],
+  );
+  printCliffs(
+    'cached (tsc)',
+    ciData['ci-cached']?.build.joules || [],
+    'swc',
+    ciData['ci-swc']?.build.joules || [],
+  );
 
   printHeader("Part A – Effect sizes (Cliff's delta)");
   const bl = ciData['ci-baseline']?.total.joules || [];
@@ -424,22 +448,19 @@ function exportPartACSV(ciData) {
     summary,
   );
 
-  const labels = CI_WORKFLOWS.flatMap((wf) => {
-    const lbls = wf === 'ci-swc' ? SWC_LABELS : CI_LABELS;
-    return lbls
-      .filter((l) => ciData[wf]?.[l]?.joules.length > 0)
-      .map((l) => {
-        const d = ciData[wf][l];
-        return [
-          wf,
-          l,
-          d.joules.length,
-          fmt(mean(d.joules)),
-          fmt(median(d.joules)),
-          fmt(stddev(d.joules)),
-        ];
-      });
-  });
+  const labels = CI_WORKFLOWS.flatMap((wf) =>
+    CI_LABELS.filter((l) => ciData[wf]?.[l]?.joules.length > 0).map((l) => {
+      const d = ciData[wf][l];
+      return [
+        wf,
+        l,
+        d.joules.length,
+        fmt(mean(d.joules)),
+        fmt(median(d.joules)),
+        fmt(stddev(d.joules)),
+      ];
+    }),
+  );
   saveCSV('osa-a-labels.csv', ['workflow', 'label', 'n', 'mean_j', 'median_j', 'sd_j'], labels);
 }
 
