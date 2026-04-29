@@ -19,6 +19,10 @@ const GMT_API = 'https://api.green-coding.io';
 const GH_API = 'https://api.github.com';
 const FINLAND_CI = 66;
 
+// Eco CI's fallback when ElectricityMaps API call fails or token is missing.
+// Source: green-coding-solutions/eco-ci-energy-estimation default constant.
+const ECO_CI_FALLBACK_INTENSITY = 472;
+
 const SIM_A_START = process.env.SIM_A_START;
 const SIM_A_END = process.env.SIM_A_END;
 const SIM_B_START = process.env.SIM_B_START;
@@ -116,6 +120,7 @@ function collectLabel(runs, label) {
   for (const { measurements } of Object.values(runs)) {
     const m = measurements[label];
     if (!m) continue;
+    if (m.joules <= 0) continue;
     joules.push(m.joules);
     seconds.push(m.seconds);
     if (m.intensity) intensities.push(m.intensity);
@@ -130,7 +135,7 @@ function collectTotal(runs, labels) {
   let dropped = 0;
   for (const { measurements } of Object.values(runs)) {
     const vals = labels.map((l) => measurements[l]).filter(Boolean);
-    if (vals.length !== labels.length) {
+    if (vals.length !== labels.length || vals.some((m) => m.joules <= 0)) {
       dropped++;
       continue;
     }
@@ -144,6 +149,52 @@ function collectTotal(runs, labels) {
     dropped,
     intensity: intensities.length > 0 ? median(intensities) : null,
   };
+}
+
+// =============================================================================
+// Data quality reporting
+// =============================================================================
+
+function dataQuality(runs, labels) {
+  let realtime = 0,
+    constant = 0,
+    missing = 0,
+    zero = 0,
+    total = 0;
+  const intensities = [];
+  for (const { measurements } of Object.values(runs)) {
+    for (const l of labels) {
+      const m = measurements[l];
+      if (!m) {
+        missing++;
+        continue;
+      }
+      total++;
+      if (m.joules === 0) zero++;
+      if (m.intensity === ECO_CI_FALLBACK_INTENSITY) constant++;
+      else if (m.intensity) {
+        realtime++;
+        intensities.push(m.intensity);
+      } else missing++;
+    }
+  }
+  const iMin = intensities.length > 0 ? Math.min(...intensities) : null;
+  const iMax = intensities.length > 0 ? Math.max(...intensities) : null;
+  return { total, realtime, constant, missing, zero, iMin, iMax };
+}
+
+function printDataQuality(wf, runs, labels, dropped) {
+  const q = dataQuality(runs, labels);
+  const flags = [];
+  if (q.constant > 0) flags.push(`${q.constant} CONSTANT (472)`);
+  if (q.zero > 0) flags.push(`${q.zero} zero-energy`);
+  if (q.missing > 0) flags.push(`${q.missing} missing`);
+  if (dropped > 0) flags.push(`${dropped} runs dropped (incomplete or zero-energy)`);
+  const flagStr = flags.length > 0 ? `  ⚠ ${flags.join(', ')}` : '  ✓ clean';
+  console.log(`    Data quality: ${q.realtime}/${q.total} realtime${flagStr}`);
+  if (q.iMin !== null) {
+    console.log(`    Carbon intensity range: ${q.iMin}–${q.iMax} gCO₂eq/kWh`);
+  }
 }
 
 // =============================================================================
@@ -267,7 +318,7 @@ function csvRowCI(wf, d) {
 }
 
 function toIntensitySource(intensity) {
-  if (intensity === 472) return 'CONSTANT';
+  if (intensity === ECO_CI_FALLBACK_INTENSITY) return 'CONSTANT';
   if (intensity) return 'realtime';
   return 'unknown';
 }
@@ -348,6 +399,7 @@ function reportPartA(ciRuns, ciData) {
     console.log(`\n▸ ${wf} (${Object.keys(ciRuns[wf]).length} runs)`);
     printStats('Energy (J)', ciData[wf].total.joules, ciData[wf].total.intensity);
     printStats('Duration (s)', ciData[wf].total.seconds);
+    printDataQuality(wf, ciRuns[wf], CI_LABELS, ciData[wf].total.dropped);
   }
 
   printHeader('Part A – Install step (effect of caching)');
@@ -498,7 +550,7 @@ function buildDockerData(dockerRuns) {
   return dockerData;
 }
 
-function reportPartB(dockerData, blMean) {
+function reportPartB(dockerRuns, dockerData, blMean) {
   printHeader('Part B – Build energy per configuration (Joules)');
   for (const wf of DOCKER_WORKFLOWS) {
     if (!dockerData[wf]) continue;
@@ -519,6 +571,7 @@ function reportPartB(dockerData, blMean) {
     const d = dockerData[wf].total;
     console.log(`\n▸ ${wf}`);
     printStats('Total energy (J)', d.joules, d.intensity);
+    printDataQuality(wf, dockerRuns[wf], DOCKER_LABELS, d.dropped);
   }
 
   printHeader("Part B – Effect sizes (Cliff's delta)");
@@ -623,7 +676,7 @@ async function main() {
 
   const dockerRuns = await fetchDockerData(workflowIds);
   const dockerData = buildDockerData(dockerRuns);
-  reportPartB(dockerData, blMean);
+  reportPartB(dockerRuns, dockerData, blMean);
 
   printHeader('Saving CSV files');
   exportAllRawCSV(ciRuns, dockerRuns);
