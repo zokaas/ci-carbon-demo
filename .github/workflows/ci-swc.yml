@@ -79,7 +79,7 @@ jobs:
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
         with:
           task: get-measurement
-          label: 'build-swc'
+          label: 'build'
         continue-on-error: true
 
       - name: Final measurement
