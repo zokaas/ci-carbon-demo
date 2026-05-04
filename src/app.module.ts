@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProductsModule } from './products/products.module';
 import { UsersModule } from './users/users.module';
 import { OrdersModule } from './orders/orders.module';
+import { SeedModule } from './seed/seed.module';
 import { Product } from './products/product.entity';
 import { User } from './users/user.entity';
 import { Order } from './orders/order.entity';
@@ -19,6 +20,7 @@ import { Order } from './orders/order.entity';
     ProductsModule,
     UsersModule,
     OrdersModule,
+    SeedModule,
   ],
 })
 export class AppModule {}
