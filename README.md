@@ -37,6 +37,8 @@ Four workflows run on every push to `ci-sim`. Each represents a different optimi
 | `ci-swc` | SWC compiler instead of tsc | Build step is faster (Rust-based transpiler) |
 | `ci-path-filter` | Skip run on docs-only changes | Fewer total runs – 15 out of 50 commits are skipped |
 
+E2e-tests (`npm run test:e2e`) seed the in-memory database with 1000 products, users and orders before each test suite via `SeedService`. This gives the test step a realistic, non-trivial workload so the energy difference between caching, SWC and the unoptimised baseline is measurable rather than buried in noise.
+
 ### Part B – Docker images
 
 Four workflows run on every push to `docker-sim`. Each builds and runs a different Docker image:
@@ -46,7 +48,7 @@ Four workflows run on every push to `docker-sim`. Each builds and runs a differe
 | `docker-full` | `node:22` | Single-stage, full Debian | Highest |
 | `docker-slim` | `node:22-slim` | Single-stage, trimmed Debian | Lower |
 | `docker-alpine` | `node:22-alpine` | Single-stage, minimal Alpine | Low |
-| `docker-multistage` | `alpine → alpine` | Build and runtime separated | Lowest runtime image |
+| `docker-multistage` | `node:22 → node:22` | Build and runtime separated, same base as `docker-full` to isolate the effect of multi-stage structure | Comparable build, smaller runtime image than `docker-full` |
 
 Each Docker workflow measures two steps separately:
 - **`docker-build`** – energy consumed building the image
@@ -76,6 +78,8 @@ CO₂ is calculated two ways:
 
 ## Quick start
 
+Requires **Node.js 22+** (see `engines` field in `package.json`).
+
 ```bash
 git clone https://github.com/zokaas/ci-carbon-demo.git
 cd ci-carbon-demo
@@ -96,20 +100,17 @@ Settings → Secrets and variables → Actions → New repository secret
 
 ---
 
-
 ## Environment variables
 
-Copy `.env.example` to `.env` and fill in the simulation timestamps after running each simulation:
+Copy `.env.example` to `.env`:
 
 ```bash
 cp .env.example .env
 ```
 
-Then run the analysis with:
+After running each simulation, open `.env` and fill in the `SIM_A_START`/`SIM_A_END` and `SIM_B_START`/`SIM_B_END` timestamps that the simulation script prints. Use ISO 8601 (`YYYY-MM-DDTHH:MM:SSZ`).
 
-```bash
-source .env && node scripts/analyze_results.mjs
-```
+The `.env` file is consumed natively by Node.js (≥ 20.6) via the `--env-file` flag — no extra packages required. See "Running the analysis" below.
 
 ---
 
@@ -202,17 +203,11 @@ If data is missing, do not proceed to the next simulation — check the workflow
 
 ## Running the analysis
 
-After both simulations are complete, run the analysis script from the `main` branch.
-Use the start and end times that were printed by each simulation script.
+After both simulations are complete and you have filled the timestamps into `.env` (see "Environment variables"), run the analysis script from the `main` branch:
 
 ```bash
 git checkout main
-
-SIM_A_START=2026-04-26T18:00:00Z \
-SIM_A_END=2026-04-26T22:00:00Z \
-SIM_B_START=2026-04-27T08:00:00Z \
-SIM_B_END=2026-04-27T14:00:00Z \
-node scripts/analyze_results.mjs
+node --env-file=.env scripts/analyze_results.mjs
 ```
 
 The script produces a full statistical report including:
