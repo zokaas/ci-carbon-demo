@@ -24,17 +24,10 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
-
-      - name: Cache node_modules
-        uses: actions/cache@v4.2.3
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --prefer-offline --no-audit
 
       - name: Measure install
         uses: green-coding-solutions/eco-ci-energy-estimation@v5
@@ -102,3 +95,4 @@ jobs:
           name: energy-${{ github.workflow }}-${{ github.run_id }}
           path: results/energy-*.json
           retention-days: 30
+          
