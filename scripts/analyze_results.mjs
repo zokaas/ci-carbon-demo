@@ -82,7 +82,9 @@ async function fetchGmtData(repo, branch, workflowId, startDate, endDate) {
 // Data processing
 // =============================================================================
 
-function groupByRun(rows) {
+function groupByRun(rows, startTime, endTime) {
+  const startMs = startTime ? new Date(startTime).getTime() : null;
+  const endMs = endTime ? new Date(endTime).getTime() : null;
   const runs = {};
   for (const [
     energy_uj,
@@ -101,6 +103,12 @@ function groupByRun(rows) {
     carbon_intensity,
     co2_ug,
   ] of rows) {
+    // Aikaikkunan suodatus
+    if (startMs !== null && endMs !== null) {
+      const ts = new Date(timestamp).getTime();
+      if (ts < startMs || ts > endMs) continue;
+    }
+
     if (!runs[run_id]) runs[run_id] = { timestamp, measurements: {} };
     runs[run_id].measurements[label] = {
       joules: energy_uj / 1_000_000,
@@ -371,7 +379,7 @@ async function fetchCIData(workflowIds) {
     }
     console.log(`  Fetching ${wf} (ID: ${id})...`);
     const rows = await fetchGmtData(REPO, CI_BRANCH, id, SIM_A_START, SIM_A_END);
-    ciRuns[wf] = groupByRun(rows);
+    ciRuns[wf] = groupByRun(rows, SIM_A_START, SIM_A_END);
     console.log(`    → ${Object.keys(ciRuns[wf]).length} runs`);
   }
   return ciRuns;
@@ -531,7 +539,7 @@ async function fetchDockerData(workflowIds) {
     }
     console.log(`  Fetching ${wf} (ID: ${id})...`);
     const rows = await fetchGmtData(REPO, DOCKER_BRANCH, id, SIM_B_START, SIM_B_END);
-    dockerRuns[wf] = groupByRun(rows);
+    dockerRuns[wf] = groupByRun(rows, SIM_B_START, SIM_B_END);
     console.log(`    → ${Object.keys(dockerRuns[wf]).length} runs`);
   }
   return dockerRuns;
