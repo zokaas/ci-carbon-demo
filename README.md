@@ -257,3 +257,4 @@ MIT
 | **Cliff's delta** | Effect size — how large is the practical difference? Non-parametric, does not assume normal distribution. Scale: negligible < 0.147, small < 0.33, medium < 0.474, large ≥ 0.474 (Romano et al. 2006). |
 <!-- doc update 1 - Sat May  9 13:45:19 EEST 2026 -->
 <!-- doc update 2 - Sat May  9 13:47:21 EEST 2026 -->
+<!-- doc update 3 - Sat May  9 13:49:22 EEST 2026 -->
